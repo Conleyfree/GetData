@@ -14,10 +14,12 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class GetCommentsFromTB {
 
+    static String keyword = "礼品";
+
     public static void main(String[] args) throws SQLException{
 
-        System.out.println("天猫上搜索‘广东特产’的所有商品及其评论：");
-        ArrayList<Product> products = GetProductsFromTB.get("广东特产");
+        System.out.println("天猫上搜索'" + keyword + "'的所有商品及其评论：");
+        ArrayList<Product> products = GetProductsFromTB.get(keyword);
 
         for(Product product : products){
 

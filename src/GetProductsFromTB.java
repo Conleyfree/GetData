@@ -16,9 +16,11 @@ import java.util.regex.Pattern;
  */
 public class GetProductsFromTB {
 
+    static String keyword = "礼品";
+
     public static void main(String[] args){
-        get("广东特产");
-    }
+        get(keyword);
+    }       /* 测试 */
 
     public static ArrayList<Product> get(String key){
         ArrayList<Product> products = new ArrayList<>();
