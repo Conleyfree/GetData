@@ -19,8 +19,8 @@ public class DataPersistence {
             return  false;
         String sql = "insert into product(item_id,seller_id,name,sales_of_month,comments_count) " +
                 "values(" + product.getItemId() + "," + product.getSellerId() + ",'" +
-                    product.getName() + "','" + product.getSalesOfMonth() + "'," +
-                    product.getCommentsCount() + ")";
+                    product.getName() + "','" + product.getSalesOfMonth() + "','" +
+                    product.getCommentsCount() + "')";
         Boolean result = sql_conn.insertSQL(sql);           // 插入记录
         if(result){
             sql = "select LAST_INSERT_ID()";                // 获取自增主键的值
@@ -45,6 +45,25 @@ public class DataPersistence {
                 break;
         }
         return result;
+    }
+
+    /* 获取所有 pid 大于传入参数值的Product */
+    public static ArrayList<Product> selectProducts(Integer pid) throws SQLException {
+        ArrayList<Product> products = new ArrayList<>();
+        String sql = "select * from product where pid >= " + pid;
+        ResultSet rs = sql_conn.selectSQL(sql);
+        while(rs.next()){
+            int id = rs.getInt("pid");
+            String item_id = rs.getString("item_id");
+            String seller_id = rs.getString("seller_id");
+            String name = rs.getString("name");
+            String sales_of_month = rs.getString("sales_of_month");
+            String comments_count = rs.getString("comments_count");
+            Product product = new Product(item_id, seller_id, name, comments_count, sales_of_month);
+            product.setPid(id);
+            products.add(product);
+        }
+        return products;
     }
 
     public static void close(){

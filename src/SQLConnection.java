@@ -14,7 +14,7 @@ public class SQLConnection {
 
     // connect to MySQL
     void connSQL() {
-        String url = "jdbc:mysql://localhost:3306/tmall_comments?characterEncoding=UTF-8";
+        String url = "jdbc:mysql://localhost:3306/tmall_comments4gift?characterEncoding=UTF-8";
         String username = "root";
         String password = "1234";
         try {
@@ -23,7 +23,7 @@ public class SQLConnection {
         } catch ( ClassNotFoundException cnfex ) {          // 捕获加载驱动程序异常
             System.err.println("装载 JDBC/ODBC 驱动程序失败。" );
             cnfex.printStackTrace();
-        } catch ( SQLException sqlex ) {                      // 捕获连接数据库异常
+        } catch ( SQLException sqlex ) {                    // 捕获连接数据库异常
             System.err.println( "无法连接数据库" );
             sqlex.printStackTrace();
         }

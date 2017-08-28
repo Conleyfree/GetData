@@ -1,8 +1,11 @@
 import java.io.*;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -14,17 +17,33 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class GetCommentsFromTB {
 
+    private static Logger logger = Logger.getLogger(GetCommentsFromTB.class);
     static String keyword = "礼品";
 
     public static void main(String[] args) throws SQLException{
 
         System.out.println("天猫上搜索'" + keyword + "'的所有商品及其评论：");
-        ArrayList<Product> products = GetProductsFromTB.get(keyword);
 
+        ArrayList<Product> products = new ArrayList<>();
+        Integer current_pid = 1;
+        if(args.length == 0)
+            products = GetProductsFromTB.get(keyword);
+        else if(args.length == 1){
+            /* 从数据库中获取 */
+            try{
+                current_pid = Integer.parseInt(args[0]);
+                products.addAll(DataPersistence.selectProducts(current_pid));
+            }catch(NumberFormatException nfe){
+                logger.error("参数错误！");
+            }
+        }else{
+            logger.error("参数错误！");
+        }
+
+        int pid = current_pid;
         for(Product product : products){
 
-            /* 将商品信息保存到数据库 */
-            DataPersistence.insertProduct(product);
+            logger.info("当前搜索商品的主键： pid = " + pid);
 
             /* 控制台输出商品信息 */
             System.out.println("商品id：" + product.getItemId() + "; 店家id：" + product.getSellerId());
@@ -34,7 +53,10 @@ public class GetCommentsFromTB {
 
             /* 获取商品评论，并保存到数据库 */
             product.getAllComments();
+
             DataPersistence.insertCommentsOfProduct(product);
+
+            pid++;
         }
 
         /* 关闭 mysql 的连接 */
@@ -90,6 +112,8 @@ class Product{
         this.pid = pid;
     }
 
+    private static Logger logger = Logger.getLogger(Product.class);
+
     Product(String itemId, String sellerId, String name, String commentsCount, String salesOfMonth){
         this.itemId = itemId;
         this.sellerId = sellerId;
@@ -137,6 +161,26 @@ class Product{
             result = new String(result.getBytes("UTF-8"), "ISO-8859-1");
             result = new String(result.getBytes("ISO-8859-1"), "UTF-8");
 
+        }catch(SocketTimeoutException e){
+            logger.info("SocketTimeoutException, 网络中断！");
+            try{
+                Thread.sleep(12000);
+            }catch(InterruptedException ie){
+                logger.info("休眠被中断");
+            }
+            logger.info("继续访问访问！");
+            result = getCommentsOfCurrentPage();    // 继续获取
+
+        }catch(ConnectException ce){
+            logger.info("ConnectException, 网络中断！");
+            try{
+                Thread.sleep(12000);
+            }catch(InterruptedException ie){
+                logger.info("休眠被中断");
+            }
+            logger.info("继续访问访问！");
+            result = getCommentsOfCurrentPage();    // 继续获取
+
         }catch(Exception e){
             System.out.println(e);
             return "204: can not get the json";
@@ -147,7 +191,7 @@ class Product{
 
     ArrayList<String> getAllComments() {
         ArrayList<String> comments_list = new ArrayList<>();
-        int count = 0, totalPages = 0, attemptLimit = 20;
+        int count = 0, totalPages = 0, attemptLimit = 50;
         JSONObject obj;
         do{
             currentPage ++;
@@ -157,11 +201,12 @@ class Product{
                 attemptLimit --;
                 if(attemptLimit == 0){
                     System.out.println("400：connection is broken！");
+                    logger.error("由于过频繁访问而无法获取需要的数据，经过" + attemptLimit + "次尝试未果！");
                     return null;
                 }
                 continue;
             }
-            attemptLimit = 20;
+            attemptLimit = 50;
 
             try {
                 // 把字符串转换为JSONArray对象
@@ -190,6 +235,7 @@ class Product{
         }while(currentPage < totalPages);
 
         System.out.println("200: success!");
+        logger.info("已成功读取当前商品所有评论\n");
         this.comments = comments_list;
         return comments_list;
     }

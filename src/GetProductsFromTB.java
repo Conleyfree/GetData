@@ -1,3 +1,4 @@
+import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -5,6 +6,7 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +18,7 @@ import java.util.regex.Pattern;
  */
 public class GetProductsFromTB {
 
+    private static Logger logger = Logger.getLogger(GetCommentsFromTB.class);
     static String keyword = "礼品";
 
     public static void main(String[] args){
@@ -35,8 +38,16 @@ public class GetProductsFromTB {
             /* 天猫搜索商品页面的url首页与后面的页面的Url不同 */
             /* 在页面上获取搜索结果的页面数量 */
             /* 解析Url获取Document对象 */
-            Document document = Jsoup.connect(home_url).get();
-            String target = document.getElementsByClass("ui-page-skip").get(0).text();
+            String target = "";
+            do{
+                Document document = Jsoup.connect(home_url).get();
+                Elements info_page = document.getElementsByClass("ui-page-skip");
+                if(info_page.size() != 0){
+                    target += info_page.get(0).text();
+                    break;
+                }
+            }while(true);
+
 
             /* 对含总页数得文本进行解析，前提是这个文本仅有一个数字，且就是总页数
                (天猫是如此，target字符串基本为：“共39页，到第页 确定”)
@@ -46,7 +57,8 @@ public class GetProductsFromTB {
             Matcher m = p.matcher(target);
             Integer totalPages = Integer.parseInt(m.replaceAll("").trim());
 
-            System.out.println("fuck：" + totalPages);
+            System.out.println("总共有商品页面：" + totalPages);
+
             Integer currentIndex = 60;
             for(int i = 2; i <= totalPages; i++){
 
@@ -84,49 +96,76 @@ public class GetProductsFromTB {
         /* 获取商品在天猫上的id */
         String itemid = product_div.attr("data-id");
 
-        /* 获取商品坐在店铺的id */
-        Element shop_div = product_div.getElementsByClass("productShop").get(0);
-        String sellerid = getSellerID(shop_div);
+        try{
+            /* 获取商品坐在店铺的id */
+            Element shop_div = product_div.getElementsByClass("productShop").get(0);
+            String sellerid = getSellerID(shop_div);
 
-        /* 获取商品名 */
-        Element product_title = product_div.getElementsByClass("productTitle").get(0);
-        String product_name = product_title.getElementsByTag("a").get(0).attr("title");
+            /* 获取商品名 */
+            Element product_title = product_div.getElementsByClass("productTitle").get(0);
+            String product_name = product_title.getElementsByTag("a").get(0).attr("title");
 
-        /* 获取评论数与月销量 */
-        Element product_status = product_div.getElementsByClass("productStatus").get(0);
-        String commentCount = product_status.getElementsByTag("span").get(1).getElementsByTag("a").get(0).text();
-        String salesOfMonth = product_status.getElementsByTag("em").text();
+            /* 获取评论数与月销量 */
+            Element product_status = product_div.getElementsByClass("productStatus").get(0);
+            String commentCount = product_status.getElementsByTag("span").get(1).getElementsByTag("a").get(0).text();
+            String salesOfMonth = product_status.getElementsByTag("em").text();
 
-        /* 创建商品对象，并返回 */
-        return new Product(itemid, sellerid, product_name, commentCount, salesOfMonth);
+            /* 创建商品对象，并返回 */
+            return new Product(itemid, sellerid, product_name, commentCount, salesOfMonth);
+
+        }catch (IndexOutOfBoundsException ex_ofIndex){
+
+            /* 可能获得没有保存商品的div */
+            return null;
+        }
+
     }
 
-    private static ArrayList<Product> getProductsByURL(String url) throws IOException{
+    private static ArrayList<Product> getProductsByURL(String url) throws SQLException{
 
         ArrayList<Product> products = new ArrayList<>();
 
         Boolean isRetry;
         Document document;
         Elements product_divs;
-        do{
-            /* 解析Url获取Document对象 */
-            document = Jsoup.connect(url).get();
 
-            /* 获取网页源码文本内容 */
-            product_divs = document.getElementsByClass("product");
+        try {
+            do {
+                /* 解析Url获取Document对象 */
+                document = Jsoup.connect(url).get();
 
-            isRetry = product_divs.size() == 0 ? true : false;
+                /* 获取网页源码文本内容 */
+                product_divs = document.getElementsByClass("product");
 
-        }while(isRetry);
+                isRetry = product_divs.size() == 0;
 
-        System.out.println("获取到商品" + product_divs.size() + "件。");
-        for(int i = 0 ;i < product_divs.size(); i++){
+            } while (isRetry);
 
-            /* 解析HTML，构建Product对象 */
-            Element product_div = product_divs.get(i);
-            Product product = createProduct(product_div);
-            System.out.println(product.getName());
-            products.add(product);
+            System.out.println("获取到商品" + product_divs.size() + "件。");
+
+            for(Element product_div : product_divs) {
+
+                /* 解析HTML，构建Product对象 */
+                Product product = createProduct(product_div);
+
+                /* 将商品信息保存到数据库 */
+                DataPersistence.insertProduct(product);
+
+                if (product != null){
+                    System.out.println(product.getName());
+                    products.add(product);
+                }
+            }
+
+        }catch (IOException e){
+            logger.info("服务器连接超时或者拒绝访问！");
+            try{
+                Thread.sleep(120000);           // 休眠两分钟
+            }catch (InterruptedException ie){
+                logger.info("休眠被中断");
+            }
+            logger.info("继续访问访问！");
+            products.addAll(getProductsByURL(url));
         }
 
         return products;
