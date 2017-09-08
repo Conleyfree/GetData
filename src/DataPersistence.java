@@ -17,10 +17,11 @@ public class DataPersistence {
     public static Boolean insertProduct(Product product) throws SQLException {
         if(product == null)
             return  false;
-        String sql = "insert into product(item_id,seller_id,name,sales_of_month,comments_count) " +
+        String sql = "insert into product(item_id,seller_id,shop,name,sales_of_month,comments_count) " +
                 "values(" + product.getItemId() + "," + product.getSellerId() + ",'" +
-                    product.getName() + "','" + product.getSalesOfMonth() + "','" +
-                    product.getCommentsCount() + "')";
+                    product.getShop() + "','" + product.getName() + "','" +
+                    product.getSalesOfMonth() + "','" + product.getCommentsCount() +
+                "')";
         Boolean result = sql_conn.insertSQL(sql);           // 插入记录
         if(result){
             sql = "select LAST_INSERT_ID()";                // 获取自增主键的值
@@ -56,10 +57,11 @@ public class DataPersistence {
             int id = rs.getInt("pid");
             String item_id = rs.getString("item_id");
             String seller_id = rs.getString("seller_id");
+            String shop = rs.getString("shop");
             String name = rs.getString("name");
             String sales_of_month = rs.getString("sales_of_month");
             String comments_count = rs.getString("comments_count");
-            Product product = new Product(item_id, seller_id, name, comments_count, sales_of_month);
+            Product product = new Product(item_id, seller_id, shop, name, comments_count, sales_of_month);
             product.setPid(id);
             products.add(product);
         }

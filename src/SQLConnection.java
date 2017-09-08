@@ -14,7 +14,7 @@ public class SQLConnection {
 
     // connect to MySQL
     void connSQL() {
-        String url = "jdbc:mysql://localhost:3306/tmall_comments4gift?characterEncoding=UTF-8";
+        String url = "jdbc:mysql://localhost:3306/tmall_comments4paper?characterEncoding=UTF-8";
         String username = "root";
         String password = "1234";
         try {

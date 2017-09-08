@@ -71,6 +71,7 @@ public class GetProductsFromTB {
             }
 
         }catch (Exception e){
+            logger.error("爬取商品的过程中断网！");
             e.printStackTrace();
         }
 
@@ -100,10 +101,13 @@ public class GetProductsFromTB {
             /* 获取商品坐在店铺的id */
             Element shop_div = product_div.getElementsByClass("productShop").get(0);
             String sellerid = getSellerID(shop_div);
+            String shop = shop_div.text();
+            shop = shop.replaceAll("'", "''");         // SQL 中以 ‘’ 代替 ‘
 
             /* 获取商品名 */
             Element product_title = product_div.getElementsByClass("productTitle").get(0);
             String product_name = product_title.getElementsByTag("a").get(0).attr("title");
+            product_name = product_name.replaceAll("'", "''");
 
             /* 获取评论数与月销量 */
             Element product_status = product_div.getElementsByClass("productStatus").get(0);
@@ -111,7 +115,7 @@ public class GetProductsFromTB {
             String salesOfMonth = product_status.getElementsByTag("em").text();
 
             /* 创建商品对象，并返回 */
-            return new Product(itemid, sellerid, product_name, commentCount, salesOfMonth);
+            return new Product(itemid, sellerid, shop, product_name, commentCount, salesOfMonth);
 
         }catch (IndexOutOfBoundsException ex_ofIndex){
 

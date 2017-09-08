@@ -18,7 +18,7 @@ import javax.net.ssl.HttpsURLConnection;
 public class GetCommentsFromTB {
 
     private static Logger logger = Logger.getLogger(GetCommentsFromTB.class);
-    static String keyword = "礼品";
+    static String keyword = "报刊订阅";
 
     public static void main(String[] args) throws SQLException{
 
@@ -47,6 +47,7 @@ public class GetCommentsFromTB {
 
             /* 控制台输出商品信息 */
             System.out.println("商品id：" + product.getItemId() + "; 店家id：" + product.getSellerId());
+            System.out.println("店铺名: " + product.getShop());
             System.out.println("商品名称：" + product.getName());
             System.out.println("评论数：" + product.getCommentsCount());
             System.out.println("月销量：" + product.getSalesOfMonth());
@@ -69,6 +70,7 @@ public class GetCommentsFromTB {
 class Product{
 
     private Integer pid;                                                    // 商品插入数据库后的主键值
+    private String shop;                                                    // 店家名
     private String name;                                                    // 商品名称
     private String commentsCount;                                           // 评论数
     private String salesOfMonth;                                            // 月销量
@@ -86,6 +88,10 @@ class Product{
 
     public String getSellerId() {
         return sellerId;
+    }
+
+    public String getShop() {
+        return shop;
     }
 
     public String getName() {
@@ -114,9 +120,10 @@ class Product{
 
     private static Logger logger = Logger.getLogger(Product.class);
 
-    Product(String itemId, String sellerId, String name, String commentsCount, String salesOfMonth){
+    Product(String itemId, String sellerId, String shop, String name, String commentsCount, String salesOfMonth){
         this.itemId = itemId;
         this.sellerId = sellerId;
+        this.shop = shop;
         this.name = name;
         this.commentsCount = commentsCount;
         this.salesOfMonth = salesOfMonth;
@@ -221,14 +228,29 @@ class Product{
                     JSONArray comments = obj.getJSONArray("rateList");
                     for(int i = 0; i < comments.length(); i++){
                         count ++;
-                        System.out.println(count + ". " + comments.getJSONObject(i).get("rateContent"));
-                        comments_list.add((String) comments.getJSONObject(i).get("rateContent"));
+
+                        /* 获取评论 */
+                        JSONObject commentObj = comments.getJSONObject(i);
+                        String comment = (String) commentObj.get("rateContent");
+                        comment = comment.replaceAll("'", "''");            // SQL 中以 ‘’ 代替 ‘
+
+                        /* 获取追加评论并追加到评论末尾 */
+                        JSONObject appendObj;
+                        Boolean isNoAppend = commentObj.get("appendComment") instanceof String;
+                        if(!isNoAppend) {
+                            appendObj =  commentObj.getJSONObject("appendComment");
+                            String append = (String) appendObj.get("content");
+                            append = append.replaceAll("'", "''");
+                            comment += append;
+                        }
+                        System.out.println(count + ". " + comment);
+                        comments_list.add(comment);
                     }
                 }else{      // 获取不到JSON
                     break;
                 }
             } catch (Exception e) {
-                // e.printStackTrace();
+                e.printStackTrace();
                 currentPage --;
                 System.out.println("204: can not get the json");
             }
